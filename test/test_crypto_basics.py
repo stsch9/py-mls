@@ -1,7 +1,10 @@
 import unittest
-from src.crypto_basics import SignWithLabel, VerifyWithLabel, EncryptWithLabel, DecryptWithLabel, DeriveSecret, ExpandWithLabel
+
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+
+from src.crypto_basics import SignWithLabel, VerifyWithLabel, EncryptWithLabel, DecryptWithLabel, DeriveSecret, \
+    ExpandWithLabel, DeriveTreeSecret, RefHash
 
 
 class TestCryptoBasics(unittest.TestCase):
@@ -11,6 +14,15 @@ class TestCryptoBasics(unittest.TestCase):
         secret = "cae460c779ebaa3e81c061a371486dff1ed1ff273bea369cc0fc46550b83c407"
 
         self.assertEqual(DeriveSecret(bytes.fromhex(secret), label), bytes.fromhex(out))
+
+    def test_derive_tree_secret(self):
+        generation = 2694881440
+        label = b"DeriveTreeSecret"
+        length = 32
+        out = "2095d6a81ab87095d1df26f6bdf012ec06f197e418381c1795a7b758603c936d"
+        secret = "c994e257b53f726087ddd7121876f558f1fbd6f807e5ff010830d618d7bab6f2"
+
+        self.assertEqual(DeriveTreeSecret(bytes.fromhex(secret), label, generation, length), bytes.fromhex(out))
 
     def test_encrypt_with_label(self):
         ciphertext = "40dd09ad4c5dc29d373f814bf054c9359cb75a468bc4d2c8bbcffb072a73105c4d9416ebd4fafeb62e59a9dea55da3cd"
@@ -39,6 +51,13 @@ class TestCryptoBasics(unittest.TestCase):
         secret = "55aa3ae5242564782567ce097beafe19510230660008b2cc064a78387fa16f36"
 
         self.assertEqual(ExpandWithLabel(bytes.fromhex(secret), label, bytes.fromhex(context), length), bytes.fromhex(out))
+
+    def test_ref_hash(self):
+        label = b"RefHash"
+        out = "f11019703c8b630060839b12a475fd39c6a30f8a866790ff46a35f9c65e1df3c"
+        value = "4f0c86f9c82fba0a896bd7eecf79a29856e98a7e4f13b9f841ae285d70ed8b68"
+
+        self.assertEqual(RefHash(label, bytes.fromhex(value)), bytes.fromhex(out))
 
     def test_sign_with_label(self):
         content = "df308cf2dbf471edf2c29d30e3daf161b5b87d350ee3b2c715c298ec3d10d432"

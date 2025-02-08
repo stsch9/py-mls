@@ -1,6 +1,6 @@
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey, X25519PrivateKey
-from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
 from pyhpke import AEADId, CipherSuite, KDFId, KEMId, KEMKey
 
@@ -87,11 +87,20 @@ def DecryptWithLabel(PrivateKey: bytes, Label: bytes, Context: bytes, KEMOutput:
 
     return recipient.open(Ciphertext)
 
-def ExpandWithLabel(Secret: bytes, Label: bytes, Context, Length: int):
+def ExpandWithLabel(Secret: bytes, Label: bytes, Context: bytes, Length: int):
     KDFLabel = Length.to_bytes(2, byteorder='big') + write_opaque_vec(b'MLS 1.0 ' + Label) + write_opaque_vec(Context)
-    hkdf = HKDFExpand(algorithm=SHA256(), length=Length, info=KDFLabel)
+    hkdf = HKDFExpand(algorithm=hashes.SHA256(), length=Length, info=KDFLabel)
 
     return hkdf.derive(Secret)
 
 def DeriveSecret(Secret: bytes, Label: bytes) -> bytes:
-    return ExpandWithLabel(Secret, Label, b'', SHA256.digest_size)
+    return ExpandWithLabel(Secret, Label, b'', hashes.SHA256.digest_size)
+
+def DeriveTreeSecret(Secret: bytes, Label: bytes, Generation: int, Length: int) -> bytes:
+    return ExpandWithLabel(Secret, Label, Generation.to_bytes(4, byteorder='big'), Length)
+
+def RefHash(label: bytes, value: bytes) -> bytes:
+    RefHashInput = write_opaque_vec(label) + write_opaque_vec(value)
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(RefHashInput)
+    return digest.finalize()
