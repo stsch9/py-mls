@@ -1,4 +1,5 @@
 from enum import Enum, member
+from src.crypto_basics import write_opaque_vec, read_opaque_vec
 
 
 class ProtocolVersion(Enum):
@@ -31,12 +32,12 @@ class Sender(object):
         sender_type = SenderType(data[:1])
         if sender_type == SenderType.member:
             leaf_index = data[1:5]
-            return cls(sender_type, leaf_index=leaf_index)
+            return cls(sender_type, leaf_index=leaf_index), data[5:]
         elif sender_type == SenderType.external:
             sender_index = data[1:5]
-            return cls(sender_type, sender_index=sender_index)
+            return cls(sender_type, sender_index=sender_index), data[5:]
         else:
-            return cls(sender_type)
+            return cls(sender_type), data[1:]
 
     @property
     def encode(self) -> bytes:
@@ -45,4 +46,35 @@ class Sender(object):
             s += self.leaf_index
         if self.sender_type == SenderType.external:
             s += self.sender_index
+        return s
+
+
+class FramedContent(object):
+    def __init__(self, group_id: bytes, epoch: bytes, sender: Sender, authenticated_data: bytes, content_type: ContentType):
+        self.group_id = group_id
+        if len(epoch) == 8:
+            self.epoch = epoch
+        else:
+            raise Exception("mls: invalid epoch")
+        self.sender = sender
+        self.authenticated_data = authenticated_data
+        self.content_type = content_type
+
+    @classmethod
+    def decode(cls, data: bytes):
+        group_id, data = read_opaque_vec(data)
+        epoch = data[:8]
+        data = data[8:]
+        sender, data = Sender.decode(data)
+        authenticated_data, data = read_opaque_vec(data)
+        content_type = ContentType(data[:1])
+        data = data[1:]
+        # https://stackoverflow.com/questions/44356435/remove-first-n-elements-of-bytes-object-without-copying
+        return cls(group_id=group_id, epoch=epoch, sender=sender, authenticated_data=authenticated_data,
+                   content_type=content_type)
+
+    @property
+    def encode(self) -> bytes:
+        s = (write_opaque_vec(self.group_id) + self.epoch + self.sender.encode + write_opaque_vec(self.authenticated_data)
+             + self.content_type.value)
         return s

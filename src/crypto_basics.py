@@ -48,11 +48,11 @@ def write_opaque_vec(value: bytes) -> bytes:
     return write_varint(len(value)) + value
 
 
-def read_opaque_vec(value: bytes) -> bool:
+def read_opaque_vec(value: bytes) -> tuple[bytes, bytes]:
     v, l = read_varint(value)
-    if len(value[l:]) != v:
-        return False
-    return True
+    if len(value[l:]) < v:
+        raise Exception("mls: cannot read opaque vec")
+    return value[l:v+l], value[v+l:]
 
 def marshal_sign_content(label: bytes, content: bytes) -> bytes:
     label = b'MLS 1.0 ' + label
