@@ -1,6 +1,8 @@
-from enum import Enum, member
+from enum import Enum
+from typing import Optional
 from src.crypto_basics import write_opaque_vec, read_opaque_vec
 
+# perhaps it is better to use bytearry instead of bytes: # https://stackoverflow.com/questions/44356435/remove-first-n-elements-of-bytes-object-without-copying
 
 class ProtocolVersion(Enum):
     mls10 = int(1).to_bytes(2, byteorder='big')
@@ -20,11 +22,15 @@ class SenderType(Enum):
 
 
 class Sender(object):
-    def __init__(self, sender_type: SenderType, leaf_index = b'\x00' * 4, sender_index = b'\x00' * 4):
+    def __init__(self, sender_type: SenderType, leaf_index: Optional[bytes]=None, sender_index: Optional[bytes]=None):
         self.sender_type = sender_type
         if sender_type == SenderType.member:
+            if not leaf_index:
+                raise Exception("leaf_index required")
             self.leaf_index = leaf_index
         if sender_type == SenderType.external:
+            if not sender_index:
+                raise Exception("sender_type required")
             self.sender_index = sender_index
 
     @classmethod
@@ -69,7 +75,7 @@ class FramedContent(object):
         authenticated_data, data = read_opaque_vec(data)
         content_type = ContentType(data[:1])
         data = data[1:]
-        # https://stackoverflow.com/questions/44356435/remove-first-n-elements-of-bytes-object-without-copying
+
         return cls(group_id=group_id, epoch=epoch, sender=sender, authenticated_data=authenticated_data,
                    content_type=content_type)
 
