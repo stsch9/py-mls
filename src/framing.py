@@ -27,11 +27,13 @@ class Sender(object):
         if sender_type == SenderType.member:
             if not leaf_index:
                 raise Exception("leaf_index required")
-            self.leaf_index = leaf_index
+            else:
+                self.leaf_index = leaf_index
         if sender_type == SenderType.external:
             if not sender_index:
                 raise Exception("sender_type required")
-            self.sender_index = sender_index
+            else:
+                self.sender_index = sender_index
 
     @classmethod
     def decode(cls, data: bytes):
@@ -56,7 +58,8 @@ class Sender(object):
 
 
 class FramedContent(object):
-    def __init__(self, group_id: bytes, epoch: bytes, sender: Sender, authenticated_data: bytes, content_type: ContentType):
+    def __init__(self, group_id: bytes, epoch: bytes, sender: Sender, authenticated_data: bytes,
+                 content_type: ContentType, application_data: Optional[bytes]=None):
         self.group_id = group_id
         if len(epoch) == 8:
             self.epoch = epoch
@@ -65,6 +68,12 @@ class FramedContent(object):
         self.sender = sender
         self.authenticated_data = authenticated_data
         self.content_type = content_type
+        if content_type == ContentType.application:
+            if not application_data:
+                raise Exception("application_data required")
+            else:
+                self.application_data = application_data
+
 
     @classmethod
     def decode(cls, data: bytes):
@@ -75,12 +84,15 @@ class FramedContent(object):
         authenticated_data, data = read_opaque_vec(data)
         content_type = ContentType(data[:1])
         data = data[1:]
-
-        return cls(group_id=group_id, epoch=epoch, sender=sender, authenticated_data=authenticated_data,
-                   content_type=content_type)
+        if content_type == ContentType.application:
+            application_data, data = read_opaque_vec(data)
+            return cls(group_id=group_id, epoch=epoch, sender=sender, authenticated_data=authenticated_data,
+                   content_type=content_type, application_data=application_data)
 
     @property
     def encode(self) -> bytes:
         s = (write_opaque_vec(self.group_id) + self.epoch + self.sender.encode + write_opaque_vec(self.authenticated_data)
              + self.content_type.value)
+        if self.content_type == ContentType.application:
+            s += write_opaque_vec(self.application_data)
         return s
