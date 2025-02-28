@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Optional
 from src.crypto_basics import write_opaque_vec, read_opaque_vec
 
+
 # perhaps it is better to use bytearry instead of bytes: # https://stackoverflow.com/questions/44356435/remove-first-n-elements-of-bytes-object-without-copying
 
 class ProtocolVersion(Enum):
@@ -22,7 +23,8 @@ class SenderType(Enum):
 
 
 class Sender(object):
-    def __init__(self, sender_type: SenderType, leaf_index: Optional[bytes]=None, sender_index: Optional[bytes]=None):
+    def __init__(self, sender_type: SenderType, leaf_index: Optional[bytes] = None,
+                 sender_index: Optional[bytes] = None):
         self.sender_type = sender_type
         if sender_type == SenderType.member:
             if not leaf_index:
@@ -59,7 +61,7 @@ class Sender(object):
 
 class FramedContent(object):
     def __init__(self, group_id: bytes, epoch: bytes, sender: Sender, authenticated_data: bytes,
-                 content_type: ContentType, application_data: Optional[bytes]=None):
+                 content_type: ContentType, application_data: Optional[bytes] = None):
         self.group_id = group_id
         if len(epoch) == 8:
             self.epoch = epoch
@@ -73,7 +75,8 @@ class FramedContent(object):
                 raise Exception("application_data required")
             else:
                 self.application_data = application_data
-
+        #if content_type == ContentType.proposal:
+        #    ...
 
     @classmethod
     def decode(cls, data: bytes):
@@ -87,11 +90,12 @@ class FramedContent(object):
         if content_type == ContentType.application:
             application_data, data = read_opaque_vec(data)
             return cls(group_id=group_id, epoch=epoch, sender=sender, authenticated_data=authenticated_data,
-                   content_type=content_type, application_data=application_data)
+                       content_type=content_type, application_data=application_data)
 
     @property
     def encode(self) -> bytes:
-        s = (write_opaque_vec(self.group_id) + self.epoch + self.sender.encode + write_opaque_vec(self.authenticated_data)
+        s = (write_opaque_vec(self.group_id) + self.epoch + self.sender.encode + write_opaque_vec(
+            self.authenticated_data)
              + self.content_type.value)
         if self.content_type == ContentType.application:
             s += write_opaque_vec(self.application_data)
