@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
 from pyhpke import AEADId, KDFId, KEMId, KEMKey
 from pyhpke import CipherSuite as CipherSuiteHPKE
 from enum import Enum
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, List
 
 
 class CipherSuite(Enum):
@@ -78,8 +78,16 @@ def write_vector(n: int, l: list, f: Callable[[Any], bytes]) -> bytes:
     return write_opaque_vec(s)
 
 
-def read_vector():
-    pass
+def read_vector(value: bytes, f: Callable[[Any], Any]) -> tuple[list[Any], bytes]:
+    v, l = read_varint(value)
+    if len(value[l:]) < v:
+        raise Exception("mls: cannot read vec")
+    i, r = value[l:v + l], value[v + l:]
+    vec = []
+    while len(i) > 0:
+        element, i = f(i)
+        vec.append(element)
+    return vec, r
 
 
 def marshal_sign_content(label: bytes, content: bytes) -> bytes:
@@ -150,7 +158,7 @@ class CredentialType(Enum):
 
 class Credential(object):
     def __init__(self, credential_type: CredentialType, identity: Optional[bytes] = None,
-                 certificates: Optional[bytes] = None):
+                 certificates: Optional[List[bytes]] = None):
         self.credential_type = credential_type
         if credential_type == CredentialType.basic:
             if not identity:
@@ -171,7 +179,7 @@ class Credential(object):
             identity, data = read_opaque_vec(data)
             return cls(credential_type, identity=identity), data
         elif credential_type == CredentialType.x509:
-            certificates, data = read_opaque_vec(data)
+            certificates, data = read_vector(data, lambda x: read_opaque_vec(x))
             return cls(credential_type, certificates=certificates), data
 
     @property
@@ -180,5 +188,5 @@ class Credential(object):
         if self.credential_type == CredentialType.basic:
             s += write_opaque_vec(self.identity)
         elif self.credential_type == CredentialType.x509:
-            s += write_opaque_vec(self.certificates)
+            s += write_vector(len(self.certificates), self.certificates, lambda x: write_opaque_vec(x))
         return s
