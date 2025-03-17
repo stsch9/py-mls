@@ -1,4 +1,4 @@
-from framing import ProtocolVersion
+from src.framing import ProtocolVersion
 from src.crypto_basics import CipherSuite, read_opaque_vec, write_opaque_vec
 from src.tree import LeafNode
 
