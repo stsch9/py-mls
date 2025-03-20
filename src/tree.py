@@ -73,7 +73,7 @@ class Lifetime(object):
 
 class LeafNode(object):
     def __init__(self, encryption_key: bytes, signature_key: bytes, credential: Credential, capabilities: Capabilities,
-                 leaf_node_source: LeafNodeSource, lifetime: Optional[Lifetime] = None):
+                 leaf_node_source: LeafNodeSource, extensions: List[ExtensionType], lifetime: Optional[Lifetime] = None, parent_hash: Optional[bytes] = None):
         self.encryption_key = encryption_key
         self.signature_key = signature_key
         self.credential = credential
@@ -84,6 +84,13 @@ class LeafNode(object):
                 raise Exception("lifetime required")
             else:
                 self.lifetime = lifetime
+        if leaf_node_source == LeafNodeSource.commit:
+            if not parent_hash:
+                raise Exception("parent_hash required")
+            else:
+                self.parent_hash = parent_hash
+        self.extensions = extensions
+
 
     @classmethod
     def decode(cls, data):
@@ -95,7 +102,17 @@ class LeafNode(object):
         data = data[1:]
         if leaf_node_source == LeafNodeSource.key_package:
             lifetime, data = Lifetime.decode(data)
-            return cls(encryption_key, signature_key, credential, capabilities, leaf_node_source, lifetime), data
+            parent_hash = None
+        elif leaf_node_source == LeafNodeSource.commit:
+            parent_hash, data = read_opaque_vec(data)
+            lifetime = None
+        else:
+            parent_hash = None
+            lifetime = None
+        credentials, data = read_vector(data, lambda x: (CredentialType(x[:2]), x[2:]))
+
+        return cls(encryption_key, signature_key, credential, capabilities, leaf_node_source, credentials,
+                    lifetime=lifetime, parent_hash=parent_hash), data
 
     @property
     def encode(self) -> bytes:
@@ -103,5 +120,12 @@ class LeafNode(object):
              self.capabilities.encode + self.leaf_node_source.value)
         if self.leaf_node_source == LeafNodeSource.key_package:
             s += self.lifetime.encode
+        if self.leaf_node_source == LeafNodeSource.commit:
+            s += write_opaque_vec(self.parent_hash)
+        s += write_vector(len(self.extensions), self.extensions, lambda x: x.value)
         return s
 
+
+class LeafNodeTBS(object):
+    def __init__(self):
+        pass
